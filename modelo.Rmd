@@ -1,0 +1,316 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*.
+
+Instalando os pacotes/bibliotecas
+
+```{r}
+install.packages('tidyverse')
+```
+
+Carregando as bibliotecas
+
+```{r}
+library('tidyverse')
+```
+
+Ajustando o tempo de timeout para relizar o download
+
+```{r}
+getOption('timeout')
+options(timeout=1000)
+getOption('timeout')
+```
+
+Baixando os arquivos que serão analisados
+
+```{r}
+URL <- "http://ww2.amstat.org/sections/graphics/datasets/DataExpo2009.zip"
+nomeArquivo <- "arquivo_baixado"
+download.file(URL, nomeArquivo)
+```
+
+Realizando a extração dos arquivos
+
+```{r}
+unzip(nomeArquivo)
+```
+
+Carregando os dados no dataframe
+
+```{r}
+# voos2008 <- read_csv("DataExpo2009//2008.csv.bz2") # Usar arquivo que foi baixado
+voos2008 <- read_csv("data//2008.csv.bz2") # Usar arquivo que esta do diretório data
+```
+
+Para validar, repare que ao manter a semente como 42, é esperado que os seis primeiros números de voo sejam: 'N913SW' \| 'N212WN' \| 'N69602'\| 'N550JB' \| 'N284YV' \| 'N305SW':
+
+```{r}
+set.seed(42)
+sampleDados <- sample_n(voos2008, 100000)
+str(sampleDados)
+head(sampleDados$TailNum)
+```
+
+Por fim, este conjunto de dados de exemplo com 100.000 observações será salvo em um arquivo chamado voos2008.csv, e isso é feito com a função write_csv do pacote tidyverse: 
+
+```{r}
+write_csv(sampleDados, 'voos2008.csv')
+```
+
+Repare em sua pasta de trabalho que existe um arquivo chamado voos2008.csv com aproximadamente 10Mb de tamanho. 
+
+**Dicionário de dados**
+
+| Variável              | Descrição                                                                 |
+|-----------------------|---------------------------------------------------------------------------|
+| **Year**              | 1987-2008                                                                 |
+| **Month**             | 1-12                                                                      |
+| **DayOfMonth**        | 1-31                                                                      |
+| **DayOfWeek**         | 1 (segunda-feira)-7 (domingo)                                             |
+| **DepTime**           | Hora de partida real (local, hhmm)                                        |
+| **CRSDepTime**        | Hora de partida programada (local, hhmm)                                  |
+| **ArrTime**           | Hora de chegada real (local, hhmm)                                        |
+| **CRSArrTime**        | Hora de chegada programada (local, hhmm)                                  |
+| **UniqueCarrier**     | Código de operadora único                                                 |
+| **FlightNum**         | Número do voo                                                             |
+| **TailNum**           | Número da cauda do avião                                                  |
+| **ActualElapsedTime** | Tempo real de voo em minutos                                              |
+| **CRSElapsedTime**    | Tempo programado de voo em minutos                                        |
+| **AirTime**           | Tempo de voo em minutos                                                   |
+| **ArrDelay**          | Atraso de chegada, em minutos                                             |
+| **DepDelay**          | Atraso de partida, em minutos                                             |
+| **Origin**            | Código de aeroporto IATA de origem                                        |
+| **Dest**              | Código de aeroporto IATA de destino                                       |
+| **Distance**          | Distância em milhas                                                       |
+| **TaxiIn**            | Tempo taxiando no pouso, em minutos                                       |
+| **TaxiOut**           | Tempo taxiando na decolagem, em minutos                                   |
+| **Cancelled**         | Voo foi cancelado?                                                        |
+| **CancellationCode**  | Motivo do cancelamento (A = operadora, B = clima, C = NAS, D = segurança) |
+| **Diverted**          | 1 = sim, 0 = não                                                          |
+| **CarrierDelay**      | Atraso da operadora em minutos                                            |
+| **WeatherDelay**      | Atraso do clima em minutos                                                |
+| **NASDelay**          | Atraso NAS em minutos                                                     |
+| **SecurityDelay**     | Atraso da segurança em minutos                                            |
+| **LateAircraftDelay** | Atraso da aeronave em minutos                                             |
+
+**Minimizar atrasos**
+
+Olhando para o dataset, não são todas as variáveis (ou colunas) que precisamos trazer para resolver este problema. O problema é bastante claro: **Qual é o dia da semana/época do ano para voar que minimiza atrasos?** Então, podemos olhar o dicionário de dados deste dataset para escolher algumas variáveis que fazem sentido para ajudar a resolver o problema. No bloco de código abaixo, são apresentadas duas funções do pacote tidyverse. A primeira função é o pipe, que é representado pelo símbolo %\>% e a segunda é a select. 
+
+O pipe permite que funções sejam executadas de forma ordenada, ou seja, uma função será executada somente após a outra. Repare que o símbolo do pipe está entre a variável com os dados e a função select. Isso faz com que o interpretador do R execute a instrução que está do lado esquerdo, para então, a partir de seu resultado, executar a instrução que está do lado direito do pipe. Ou seja, este exemplo de código executará o select em cima da base de dados. 
+
+Já o select é a função responsável por selecionar determinadas colunas em um dataset, fazendo com que somente aquelas colunas definidas sejam mantidas no retorno da função. Observe que o código abaixo faz a seleção de apenas sete variáveis, entre as 29 existentes no dataset, e as armazena em um novo objeto chamado novoDataset: 
+
+```{r}
+novoDataset <- voos2008 %>%
+  select(Year,Month,DayofMonth,DepTime,DepDelay,ArrDelay,Cancelled)
+```
+
+Por enquanto, todas as 100.000 observações (linhas) são mantidas, mas somente as sete variáveis que são relevantes para resolver o problema foram retornadas. É possível ver este resultado com a função str() já estudada, e também com a função head() estudada há pouco: 
+
+```{r}
+str(novoDataset)
+head(novoDataset)
+```
+
+Agora, repare em mais uma condição no bloco de código que utiliza o pipe. Veja que foi adicionada no final da linha uma nova instrução. Desta vez, a função filter foi incluída, e **13**
+
+também foi adicionado um operador lógico de comparação com o valor 9 na variável Month. Esta função filter fará com que o dado seja retornado apenas quando o mês for setembro. 
+
+Seguindo a estrutura de como o pipe funciona, o filtro para o mês de setembro será executado somente após a seleção de variáveis já ter sido executada. Ou seja, executa a instrução que está do lado direito do pipe em cima do objeto que está do lado esquerdo. 
+
+Em ordem, este bloco de código executará a ordem: 
+
+1)  Pegar todos os dados. 
+
+2)  Selecionar apenas sete variáveis. 
+
+3)  Fazer um filtro para o mês de setembro. 
+
+Observe que, agora com o filtro aplicado, o conjunto de dados não tem mais 100.000 linhas. Ficou com apenas 7.739 que foram observadas no mês de setembro: 
+
+```{r}
+novoDataset <- voos2008 %>%
+  select(Year,Month,DayofMonth,DepTime,DepDelay,ArrDelay,Cancelled) %>%
+  filter(Month == 9)
+
+str(novoDataset)
+```
+
+Bom, agora que já sabemos como realizar operações de pipe, select e filter, é hora de voltar para resolver o problema proposto. O objetivo principal é pensar em quais épocas são melhores para se ter mais eficiência com os voos, porém o problema pede duas formas diferentes de encontrar essa época: dia da semana e época do ano. Para simplificar o estudo, pensaremos em época do ano como sendo o mês. 
+
+Ao fazer a operação manual para calcular a média de atraso de um mês específico, pode-se filtrar o mês que deseja e, então, calcular a média de atraso da decolagem. A média é calculada com a função mean. Veja no código abaixo como seria uma forma de se fazer este cálculo da média:
+
+```{r}
+novoDataset <- voos2008 %>%
+  select(Year,Month,DayofMonth,DepTime,DepDelay,ArrDelay,Cancelled) %>%
+  filter(Month == 9)
+
+mean(novoDataset$DepDelay, na.rm = TRUE)
+```
+
+Veja que a média de atraso no mês de setembro é de 3.72 minutos. Porém, o que buscamos é descobrir a melhor época do ano para não ter atrasos. 
+
+Combinamos há pouco que trataríamos a época como meses. Então, faremos esse cálculo para todos os meses? 
+
+Para isso, inseriremos três novas funções em nosso estudo. A função mutate, capaz de criar uma nova variável a partir de alguma operação programada; a função group_by, capaz de fazer o agrupamento dos dados a partir das variáveis definidas; e a função arrange, capaz de ordenar os dados de forma crescente a partir das variáveis informadas. 
+
+Veja como fica uma possível forma de resolver o problema, utilizando as funções que aprendemos até agora: 
+
+```{r}
+voos2008 %>%
+  select(Month,DepDelay) %>%
+  group_by(Month) %>%
+  mutate(atrasoMedio = mean(DepDelay, na.rm = TRUE)) %>%
+  select(Month,atrasoMedio) %>%
+  unique() %>%
+  arrange(atrasoMedio)
+```
+
+A média de atraso foi criada com a função mean e salva em uma nova variável chamada atrasoMedio com a função mutate. No final do bloco de código acima, foi incluída a função unique que remove os valores duplicados. Como anteriormente à função unique estava **15**
+
+uma função de seleção das variáveis Month e atrasoMedio, somente uma aparição da combinação dessas duas variáveis será apresentada. Por fim, após todos os processos de manipulação de dados, é feita a ordenação com a variável atrasoMedio para que o resultado apresente os atrasos em ordem crescente. Assim, é possível ver quais meses são os melhores para voar: 
+
+**Pergunta 1) Aproveitando a função mutate, como deve ser feito o cálculo de tempo médio de atraso de voo com todas as observações (linhas) que temos no dataset original? Mostre os dez primeiros registros deste resultado.**
+
+```{r}
+voos2008 %>%
+  select(ArrTime,CRSArrTime, ArrDelay, TailNum, Month) %>%
+  group_by(TailNum) %>%
+  mutate(tempoAtraso = mean(ArrTime - CRSArrTime)) %>%
+  select(TailNum, tempoAtraso) %>%
+  unique() %>%
+  arrange(tempoAtraso, TailNum) %>%
+  head(10)
+```
+
+**Pergunta 2) No experimento para mostrar o mês com menos atrasos, o que acontece se executar a função unique() antes de executar a função select?**
+
+```{r}
+voos2008 %>%
+  select(Month,DepDelay) %>%
+  group_by(Month) %>%
+  mutate(atrasoMedio = mean(DepDelay, na.rm = TRUE)) %>%
+  unique() %>%
+  select(Month,atrasoMedio) %>%
+  arrange(atrasoMedio)
+```
+
+**Qual aeroporto devemos evitar?**
+
+Ao se atentar às questões que envolvem os atrasos, alguns outros desafios podem ser pensados. Um deles é: Qual aeroporto atrasa mais nas decolagens? Ao explorar as funções que já estudamos até aqui, esta é uma resposta relativamente simples de se encontrar neste dataset. 
+
+A primeira coisa a se fazer é pensar nas variáveis que serão utilizadas. Para isso, fique atento à pergunta que precisa de resposta. Neste caso, é uma pergunta que exige apenas o aeroporto de decolagem (que é a variável Origin) e qual é o atraso na decolagem (que é a variável DepDelay). Será que conseguimos responder à questão só com essas variáveis? 
+
+Para fazer esta construção passo a passo, e melhorar a forma de fixar o conhecimento estudado, faça a seleção apenas dessas duas variáveis e veja o resultado: 
+
+```{r}
+voos2008 %>%
+select(Origin, DepDelay) %>%
+head(10)
+```
+
+Após fazer a seleção das variáveis, é hora de agrupar os códigos do aeroporto de origem. Isso nos ajudará a encontrar a soma dos atrasos. Veja o uso da função group_by e mutate e, em seguida, os dez primeiros registros deste resultado: 
+
+```{r}
+voos2008 %>%
+  select(Origin, DepDelay) %>%
+  group_by(Origin) %>%
+  mutate(totalAtraso = sum(DepDelay, na.rm = TRUE)) %>%
+  head(10)
+```
+
+Repare que os mesmos aeroportos de origem apresentam o mesmo total de atraso. Procure o aeroporto DFW na lista que foi apresentada acima. O total de atraso neste aeroporto é de 43.555 minutos durante todas as observações que estão no dataset. 
+
+O passo seguinte é unir os valores únicos deste resultado. Isso é feito com a função unique **17**
+
+e, para garantir que os dados estão ordenados com os principais atrasos no topo da lista, é necessário fazer a ordenação de forma decrescente. Vimos no e-book que a função arrange nos dá o resultado em ordem crescente. E, se deixar o resultado em ordem crescente, encontraremos os aeroportos que tem menos atrasos, como pode ser visto no bloco de código a seguir: 
+
+```{r}
+voos2008 %>%
+  select(Origin, DepDelay) %>%
+  group_by(Origin) %>%
+  mutate(totalAtraso = sum(DepDelay, na.rm = TRUE)) %>%
+  select(Origin, totalAtraso) %>%
+  unique() %>%
+  arrange(totalAtraso) %>%
+  head(10)
+```
+
+Para fazer a ordem inversa dos valores, em vez de usar somente a função arrange, é necessário adicionar a função desc. Esta função tem o objetivo de apresentar os valores do resultado de forma decrescente a partir da variável que foi informada no parâmetro. Veja como fica o código final. 
+
+E dos voos cancelados, quais são as principais causas? 
+
+```{r}
+voosCancelados <- voos2008 %>%
+  select(Cancelled, CancellationCode) %>%
+  filter(Cancelled == 1) %>%
+  group_by(CancellationCode) %>%
+  mutate(totalAtraso = sum(Cancelled)) %>%
+  select(CancellationCode, totalAtraso) %>%
+  unique() %>%
+  arrange(desc(totalAtraso))
+head(voosCancelados)
+```
+
+Repare que o resultado ficou com o código do cancelamento, mas isso não é muito interessante para quem for consumir o resultado de seu trabalho. Se você se lembrar, lá no dicionário de dados, há uma descrição para cada um dos quatro códigos de cancelamento. Que tal juntarmos a descrição com essa manipulação que fizemos? 
+
+Para isso, é necessário criar um outro data frame, para depois utilizarmos uma função de join para unir este novo data frame com o resultado que foi criado. 
+
+Criaremos este data frame, fazendo passo a passo para ficar didático. Então, relembrando o que foi aprendido na Trilha 5, crie dois vetores, um deles terá os códigos e o outro a descrição: 
+
+```{r}
+codigoCancelamento = c('A','B','C','D')
+descricaoCancelamento = c('Operadora', 'Clima', 'NAS', 'Segurança')
+```
+
+Com os dois vetores criados, é hora de incluir uma nova função em nosso aprendizado. A função \*data.frame\* recebe uma lista de parâmetros compostos que equivalem ao nome da coluna e seus valores. Veja que usaremos a função \*data.frame\* e passaremos o nome da coluna que queremos para \*\*Codigo\*\*, dizendo que ela terá os valores do vetor de código que criamos anteriormente. A mesma coisa será feita com a coluna \*\*Descricao\*\* que receberá os valores que trouxemos lá do dicionário. 
+
+Veja como é esse código:
+
+```{r}
+tiposOcorrencias <- data.frame(Codigo = codigoCancelamento, Descricao =
+descricaoCancelamento)
+head(tiposOcorrencias)
+```
+
+Agora é hora de unir os resultados dos dois data frame, o que tem a sua manipulação de dados e o que tem o código e a descrição dos cancelamentos. Para isso, é necessário utilizar a função join do pacote tidyverse. Esta função permite unir os conjuntos de dados de algumas formas. Recomendo explorar a documentação do join, disponível em \<<https://> dplyr.tidyverse.org/reference/join.html\>, para ter mais detalhes sobre as opções. 
+
+Em nosso exemplo, utilizaremos a função inner_join, informando por qual variável (coluna) faremos a união dos data frames: 
+
+```{r}
+inner_join(x=voosCancelados,y=tiposOcorrencias, by = c("CancellationCode" =
+"Codigo"))
+```
+
+Veja que, agora, quem for consumir seu resultado, saberá o que significa A, B, C ou D.
+
+**Síntese**
+
+Neste e-book, estudamos o pacote tidyverse e algumas de suas funções: 
+
+• Pipe 
+
+• Select 
+
+• group_by 
+
+• mutate 
+
+• arrange / desc 
+
+• unique 
+
+• join
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
